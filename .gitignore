@@ -3,6 +3,7 @@ pkg
 /bench/vendor/src/
 /webapp/go/vendor/src/
 /webapp/go/torb
+/webapp/go/.idea/
 .perl-version
 .DS_store
 isucon8q-initial-dataset.sql.gz
