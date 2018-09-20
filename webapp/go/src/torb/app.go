@@ -185,13 +185,11 @@ func getLoginAdministrator(c echo.Context) (*Administrator, error) {
 }
 
 func getEvents(all bool) ([]*Event, error) {
-	tx, err := db.Begin()
-	if err != nil {
-		return nil, err
+	query := "SELECT * FROM events WHERE public_fg = true ORDER BY id ASC"
+	if all {
+		query = "SELECT * FROM events ORDER BY id ASC"
 	}
-	defer tx.Commit()
-
-	rows, err := tx.Query("SELECT * FROM events ORDER BY id ASC")
+	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -203,20 +201,14 @@ func getEvents(all bool) ([]*Event, error) {
 		if err := rows.Scan(&event.ID, &event.Title, &event.PublicFg, &event.ClosedFg, &event.Price); err != nil {
 			return nil, err
 		}
-		if !all && !event.PublicFg {
-			continue
-		}
-		events = append(events, &event)
-	}
-	for i, v := range events {
-		event, err := getEvent(v.ID, -1)
+		loadedEvent, err := getEvent(event.ID, -1)
 		if err != nil {
 			return nil, err
 		}
-		for k := range event.Sheets {
-			event.Sheets[k].Detail = nil
+		for k := range loadedEvent.Sheets {
+			loadedEvent.Sheets[k].Detail = nil
 		}
-		events[i] = event
+		events = append(events, loadedEvent)
 	}
 	return events, nil
 }
