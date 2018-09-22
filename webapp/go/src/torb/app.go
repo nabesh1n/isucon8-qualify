@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"sort"
@@ -592,40 +593,51 @@ func main() {
 			return resError(c, "invalid_rank", 400)
 		}
 
-		var sheet Sheet
 		var reservationID int64
-		for {
-			if err := db.QueryRow("SELECT * FROM sheets WHERE id NOT IN (SELECT sheet_id FROM reservations WHERE event_id = ? AND canceled_at IS NULL FOR UPDATE) AND `rank` = ? LIMIT 1", event.ID, params.Rank).Scan(&sheet.ID, &sheet.Rank, &sheet.Num, &sheet.Price); err != nil {
-				if err == sql.ErrNoRows {
-					return resError(c, "sold_out", 409)
-				}
+		rows, err := db.Query("SELECT id FROM sheets WHERE id NOT IN (SELECT sheet_id FROM reservations WHERE event_id = ? AND canceled_at IS NULL FOR UPDATE) AND `rank` = ?", event.ID, params.Rank)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		var sheetIds []int64
+		for rows.Next() {
+			var sheet Sheet
+			if err := rows.Scan(&sheet.ID); err != nil {
 				return err
 			}
+			sheetIds = append(sheetIds, sheet.ID)
+		}
 
-			tx, err := db.Begin()
-			if err != nil {
-				return err
-			}
+		if len(sheetIds) == 0 {
+			return resError(c, "sold_out", 409)
+		}
 
-			res, err := tx.Exec("INSERT INTO reservations (event_id, sheet_id, user_id, reserved_at) VALUES (?, ?, ?, ?)", event.ID, sheet.ID, user.ID, time.Now().UTC().Format("2006-01-02 15:04:05.000000"))
-			if err != nil {
-				tx.Rollback()
-				log.Println("re-try: rollback by", err)
-				continue
-			}
-			reservationID, err = res.LastInsertId()
-			if err != nil {
-				tx.Rollback()
-				log.Println("re-try: rollback by", err)
-				continue
-			}
-			if err := tx.Commit(); err != nil {
-				tx.Rollback()
-				log.Println("re-try: rollback by", err)
-				continue
-			}
+		rand.Seed(time.Now().UnixNano())
+		i := rand.Intn(len(sheetIds))
+		sheetID := sheetIds[i]
 
-			break
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+
+		res, err := tx.Exec("INSERT INTO reservations (event_id, sheet_id, user_id, reserved_at) VALUES (?, ?, ?, ?)", event.ID, sheetID, user.ID, time.Now().UTC().Format("2006-01-02 15:04:05.000000"))
+		if err != nil {
+			tx.Rollback()
+			log.Println("re-try: rollback by", err)
+			return err
+		}
+		reservationID, err = res.LastInsertId()
+		if err != nil {
+			tx.Rollback()
+			log.Println("re-try: rollback by", err)
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			tx.Rollback()
+			log.Println("re-try: rollback by", err)
+			return err
 		}
 		return c.JSON(202, echo.Map{
 			"id":         reservationID,
