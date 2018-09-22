@@ -185,9 +185,9 @@ func getLoginAdministrator(c echo.Context) (*Administrator, error) {
 }
 
 func getEvents(all bool) ([]*Event, error) {
-	query := "SELECT * FROM events WHERE public_fg = true ORDER BY id ASC"
+	query := "SELECT id FROM events WHERE public_fg = true ORDER BY id ASC"
 	if all {
-		query = "SELECT * FROM events ORDER BY id ASC"
+		query = "SELECT id FROM events ORDER BY id ASC"
 	}
 	rows, err := db.Query(query)
 	if err != nil {
@@ -198,7 +198,7 @@ func getEvents(all bool) ([]*Event, error) {
 	var events []*Event
 	for rows.Next() {
 		var event Event
-		if err := rows.Scan(&event.ID, &event.Title, &event.PublicFg, &event.ClosedFg, &event.Price); err != nil {
+		if err := rows.Scan(&event.ID); err != nil {
 			return nil, err
 		}
 		loadedEvent, err := getEvent(event.ID, -1)
