@@ -69,6 +69,7 @@ type Reservation struct {
 	UserID     int64      `json:"-"`
 	ReservedAt *time.Time `json:"-"`
 	CanceledAt *time.Time `json:"-"`
+	UpdatedAt  *time.Time `json:"-"`
 
 	Event          *Event `json:"event,omitempty"`
 	SheetRank      string `json:"sheet_rank,omitempty"`
@@ -76,6 +77,7 @@ type Reservation struct {
 	Price          int64  `json:"price,omitempty"`
 	ReservedAtUnix int64  `json:"reserved_at,omitempty"`
 	CanceledAtUnix int64  `json:"canceled_at,omitempty"`
+	UpdatedAtUnix  int64  `json:"updated_at,omitempty"`
 }
 
 type Administrator struct {
@@ -423,7 +425,7 @@ func main() {
 			return resError(c, "forbidden", 403)
 		}
 
-		rows, err := db.Query("SELECT r.*, s.rank AS sheet_rank, s.num AS sheet_num FROM reservations r INNER JOIN sheets s ON s.id = r.sheet_id WHERE r.user_id = ? ORDER BY IFNULL(r.canceled_at, r.reserved_at) DESC LIMIT 5", user.ID)
+		rows, err := db.Query("SELECT r.*, s.rank AS sheet_rank, s.num AS sheet_num FROM reservations r INNER JOIN sheets s ON s.id = r.sheet_id WHERE r.user_id = ? ORDER BY r.updated_at DESC LIMIT 5", user.ID)
 		if err != nil {
 			return err
 		}
@@ -627,7 +629,7 @@ func main() {
 			return err
 		}
 
-		res, err := tx.Exec("INSERT INTO reservations (event_id, sheet_id, user_id, reserved_at) VALUES (?, ?, ?, ?)", event.ID, sheetID, user.ID, time.Now().UTC().Format("2006-01-02 15:04:05.000000"))
+		res, err := tx.Exec("INSERT INTO reservations (event_id, sheet_id, user_id, reserved_at, updated_at) VALUES (?, ?, ?, ?, ?)", event.ID, sheetID, user.ID, time.Now().UTC().Format("2006-01-02 15:04:05.000000"), time.Now().UTC().Format("2006-01-02 15:04:05.000000"))
 		if err != nil {
 			tx.Rollback()
 			log.Println("re-try: rollback by", err)
@@ -703,7 +705,7 @@ func main() {
 			return resError(c, "not_permitted", 403)
 		}
 
-		if _, err := tx.Exec("UPDATE reservations SET canceled_at = ? WHERE id = ?", time.Now().UTC().Format("2006-01-02 15:04:05.000000"), reservation.ID); err != nil {
+		if _, err := tx.Exec("UPDATE reservations SET canceled_at = ?, updated_at = ? WHERE id = ?", time.Now().UTC().Format("2006-01-02 15:04:05.000000"), time.Now().UTC().Format("2006-01-02 15:04:05.000000"), reservation.ID); err != nil {
 			tx.Rollback()
 			return err
 		}
