@@ -10,6 +10,14 @@
 
 # this is only for the mysqld standalone daemon
 [mysqld]
+slow_query_log=1
+slow_query_log_file="/var/log/mariadb/slow.log"
+log_queries_not_using_indexes
+log_slow_admin_statements
+long_query_time=0
+plugin-load = handlersocket.so
+lower_case_table_names=1
+character-set-server = utf8
 
 # this is only for embedded server
 [embedded]
@@ -25,4 +33,3 @@
 [mariadb]
 
 [mariadb-5.5]
-
