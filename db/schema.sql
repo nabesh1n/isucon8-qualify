@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS reservations (
     user_id     INTEGER UNSIGNED NOT NULL,
     reserved_at DATETIME(6)      NOT NULL,
     canceled_at DATETIME(6)      DEFAULT NULL,
-    updated_at  DATETIME(6)      NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp,
+    updated_at  DATETIME(6)      NOT NULL,
     KEY event_id_and_sheet_id_idx (event_id, sheet_id),
     INDEX (updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
