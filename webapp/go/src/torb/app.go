@@ -15,8 +15,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 	"sync"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -620,10 +620,6 @@ func main() {
 			return err
 		}
 
-		mu := sync.RWMutex{}
-		mu.Lock()
-		defer mu.Unlock()
-
 		var reservationID int64
 		tx, err := db.Begin()
 		if err != nil {
@@ -687,10 +683,6 @@ func main() {
 			}
 			return err
 		}
-
-		mu := sync.RWMutex{}
-		mu.Lock()
-		defer mu.Unlock()
 
 		tx, err := db.Begin()
 		if err != nil {
