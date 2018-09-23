@@ -226,12 +226,13 @@ func getEvent(eventID, loginUserID int64, hasDetail bool) (*Event, error) {
 
 	mu := sync.RWMutex{}
 	mu.RLock()
-	defer mu.RUnlock()
 	rows, err := db.Query("SELECT event_id, sheet_id, user_id, reserved_at, canceled_at FROM reservations WHERE event_id = ? AND canceled_at IS NULL GROUP BY event_id, sheet_id HAVING reserved_at = MIN(reserved_at)", event.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+	mu.RUnlock()
+
 	sheetReservations := map[int64]Reservation{}
 	for rows.Next() {
 		var reservation Reservation
@@ -430,12 +431,12 @@ func main() {
 
 		mu := sync.RWMutex{}
 		mu.RLock()
-		defer mu.RUnlock()
 		rows, err := db.Query("SELECT r.*, s.rank AS sheet_rank, s.num AS sheet_num FROM reservations r INNER JOIN sheets s ON s.id = r.sheet_id WHERE r.user_id = ? ORDER BY IFNULL(r.canceled_at, r.reserved_at) DESC LIMIT 5", user.ID)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
+		mu.RUnlock()
 
 		var recentReservations []Reservation
 		for rows.Next() {
@@ -600,7 +601,7 @@ func main() {
 
 		mu := sync.RWMutex{}
 		mu.Lock()
-		defer mu.Unlock()
+
 		rows, err := db.Query("SELECT id FROM sheets WHERE id NOT IN (SELECT sheet_id FROM reservations WHERE event_id = ? AND canceled_at IS NULL) AND `rank` = ?", event.ID, params.Rank)
 		if err != nil {
 			return err
@@ -652,6 +653,9 @@ func main() {
 			log.Println("re-try: rollback by", err)
 			return err
 		}
+
+		mu.Unlock()
+
 		return c.JSON(202, echo.Map{
 			"id":         reservationID,
 			"sheet_rank": params.Rank,
@@ -695,7 +699,6 @@ func main() {
 
 		mu := sync.RWMutex{}
 		mu.Lock()
-		defer mu.Unlock()
 
 		tx, err := db.Begin()
 		if err != nil {
@@ -723,6 +726,8 @@ func main() {
 		if err := tx.Commit(); err != nil {
 			return err
 		}
+
+		mu.Unlock()
 
 		return c.NoContent(204)
 	}, loginRequired)
@@ -890,12 +895,12 @@ func main() {
 
 		mu := sync.RWMutex{}
 		mu.RLock()
-		defer mu.RUnlock()
 		rows, err := db.Query("SELECT r.*, s.rank AS sheet_rank, s.num AS sheet_num, s.price AS sheet_price, e.price AS event_price FROM reservations r INNER JOIN sheets s ON s.id = r.sheet_id INNER JOIN events e ON e.id = r.event_id WHERE r.event_id = ?", event.ID)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
+		mu.RUnlock()
 
 		var reports []Report
 		for rows.Next() {
@@ -923,12 +928,12 @@ func main() {
 	e.GET("/admin/api/reports/sales", func(c echo.Context) error {
 		mu := sync.RWMutex{}
 		mu.RLock()
-		defer mu.RUnlock()
 		rows, err := db.Query("SELECT r.*, s.rank AS sheet_rank, s.num AS sheet_num, s.price AS sheet_price, e.id AS event_id, e.price AS event_price FROM reservations r INNER JOIN sheets s on s.id = r.sheet_id INNER JOIN events e ON e.id = r.event_id")
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
+		mu.RUnlock()
 
 		var reports []Report
 		for rows.Next() {
