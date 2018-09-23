@@ -920,8 +920,8 @@ func main() {
 			report := Report{
 				ReservationID: reservation.ID,
 				EventID:       event.ID,
-				Rank:          reservation.Rank,
-				Num:           reservation.Num,
+				Rank:          reservation.SheetRank,
+				Num:           reservation.SheetNum,
 				UserID:        reservation.UserID,
 				SoldAt:        reservation.ReservedAt.Format("2006-01-02T15:04:05.000000Z"),
 				Price:         event.Price + reservation.Price,
