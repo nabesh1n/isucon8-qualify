@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -591,7 +592,7 @@ func main() {
 			return resError(c, "invalid_rank", 400)
 		}
 
-		rows, err := db.Query("SELECT id FROM sheets WHERE id NOT IN (SELECT sheet_id FROM reservations WHERE event_id = ? AND canceled_at IS NULL FOR UPDATE) AND `rank` = ?", event.ID, params.Rank)
+		rows, err := db.Query("SELECT id FROM sheets WHERE id NOT IN (SELECT sheet_id FROM reservations WHERE event_id = ? AND canceled_at IS NULL) AND `rank` = ?", event.ID, params.Rank)
 		if err != nil {
 			return err
 		}
@@ -618,6 +619,10 @@ func main() {
 		if err := db.QueryRow("SELECT num FROM sheets WHERE id = ?", sheetID).Scan(&sheet.Num); err != nil {
 			return err
 		}
+
+		mu := sync.RWMutex{}
+		mu.Lock()
+		defer mu.Unlock()
 
 		var reservationID int64
 		tx, err := db.Begin()
@@ -683,13 +688,17 @@ func main() {
 			return err
 		}
 
+		mu := sync.RWMutex{}
+		mu.Lock()
+		defer mu.Unlock()
+
 		tx, err := db.Begin()
 		if err != nil {
 			return err
 		}
 
 		var reservation Reservation
-		if err := tx.QueryRow("SELECT * FROM reservations WHERE event_id = ? AND sheet_id = ? AND canceled_at IS NULL GROUP BY event_id HAVING reserved_at = MIN(reserved_at) FOR UPDATE", event.ID, sheet.ID).Scan(&reservation.ID, &reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt); err != nil {
+		if err := tx.QueryRow("SELECT * FROM reservations WHERE event_id = ? AND sheet_id = ? AND canceled_at IS NULL GROUP BY event_id HAVING reserved_at = MIN(reserved_at)", event.ID, sheet.ID).Scan(&reservation.ID, &reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt); err != nil {
 			tx.Rollback()
 			if err == sql.ErrNoRows {
 				return resError(c, "not_reserved", 400)
