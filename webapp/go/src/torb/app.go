@@ -600,9 +600,6 @@ func main() {
 			return resError(c, "invalid_rank", 400)
 		}
 
-		mu := sync.RWMutex{}
-		mu.Lock()
-
 		rows, err := db.Query("SELECT id FROM sheets WHERE id NOT IN (SELECT sheet_id FROM reservations WHERE event_id = ? AND canceled_at IS NULL) AND `rank` = ?", event.ID, params.Rank)
 		if err != nil {
 			return err
@@ -637,6 +634,9 @@ func main() {
 			return err
 		}
 
+		mu := sync.RWMutex{}
+		mu.Lock()
+		defer mu.Unlock()
 		res, err := tx.Exec("INSERT INTO reservations (event_id, sheet_id, user_id, reserved_at) VALUES (?, ?, ?, ?)", event.ID, sheetID, user.ID, time.Now().UTC().Format("2006-01-02 15:04:05.000000"))
 		if err != nil {
 			tx.Rollback()
@@ -654,8 +654,6 @@ func main() {
 			log.Println("re-try: rollback by", err)
 			return err
 		}
-
-		mu.Unlock()
 
 		return c.JSON(202, echo.Map{
 			"id":         reservationID,
@@ -698,9 +696,6 @@ func main() {
 			return err
 		}
 
-		mu := sync.RWMutex{}
-		mu.Lock()
-
 		tx, err := db.Begin()
 		if err != nil {
 			return err
@@ -719,6 +714,9 @@ func main() {
 			return resError(c, "not_permitted", 403)
 		}
 
+		mu := sync.RWMutex{}
+		mu.Lock()
+		defer mu.Unlock()
 		if _, err := tx.Exec("UPDATE reservations SET canceled_at = ? WHERE id = ?", time.Now().UTC().Format("2006-01-02 15:04:05.000000"), reservation.ID); err != nil {
 			tx.Rollback()
 			return err
@@ -727,8 +725,6 @@ func main() {
 		if err := tx.Commit(); err != nil {
 			return err
 		}
-
-		mu.Unlock()
 
 		return c.NoContent(204)
 	}, loginRequired)
