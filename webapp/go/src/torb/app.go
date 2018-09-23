@@ -199,15 +199,16 @@ func getEvents(all bool) ([]*Event, error) {
 
 	var events []*Event
 	for rows.Next() {
-		var event Event
-		if err := rows.Scan(&event.ID); err != nil {
+		var eventID int64
+		if err := rows.Scan(&eventID); err != nil {
 			return nil, err
 		}
-		loadedEvent, err := getEvent(event.ID, -1, false)
+		var event *Event
+		event, err = getEvent(eventID, -1, false)
 		if err != nil {
 			return nil, err
 		}
-		events = append(events, loadedEvent)
+		events = append(events, event)
 	}
 	return events, nil
 }
