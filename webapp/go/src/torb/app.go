@@ -327,11 +327,11 @@ func getEvent(eventID, loginUserID int64) (*Event, error) {
 		event.Total++
 		event.Sheets[sheet.Rank].Total++
 
-		reservation, ok:=sheetReservations[sheet.ID]
+		r, ok:=sheetReservations[sheet.ID]
 		if ok {
-			sheet.Mine = reservation.UserID == loginUserID
+			sheet.Mine = r.UserID == loginUserID
 			sheet.Reserved = true
-			sheet.ReservedAtUnix = reservation.ReservedAt.Unix()
+			sheet.ReservedAtUnix = r.ReservedAt.Unix()
 		} else {
 			event.Remains++
 			event.Sheets[sheet.Rank].Remains++
