@@ -9,7 +9,6 @@ import (
 	"html/template"
 	"io"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"sort"
@@ -243,7 +242,7 @@ func getEvents(all bool) ([]*Event, error) {
 
 	for reservationRows.Next() {
 		var reservation Reservation
-		reservationRows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt);
+		reservationRows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt)
 		r, ok := reservations[reservation.EventID][reservation.SheetID]
 		if ok && r.ReservedAt.Before(*reservation.ReservedAt) {
 			continue
