@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -295,14 +294,11 @@ func getEvent(eventID, loginUserID int64, hasDetail bool) (*Event, error) {
 		"C": &Sheets{},
 	}
 
-	mu := sync.RWMutex{}
-	mu.RLock()
 	rows, err := db.Query("SELECT event_id, sheet_id, user_id, reserved_at, canceled_at FROM reservations WHERE event_id = ? AND canceled_at IS NULL GROUP BY event_id, sheet_id HAVING reserved_at = MIN(reserved_at)", event.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	mu.RUnlock()
 
 	sheetReservations := map[int64]Reservation{}
 	for rows.Next() {
@@ -500,14 +496,11 @@ func main() {
 			return resError(c, "forbidden", 403)
 		}
 
-		mu := sync.RWMutex{}
-		mu.RLock()
 		rows, err := db.Query("SELECT r.*, s.rank AS sheet_rank, s.num AS sheet_num FROM reservations r INNER JOIN sheets s ON s.id = r.sheet_id WHERE r.user_id = ? ORDER BY IFNULL(r.canceled_at, r.reserved_at) DESC LIMIT 5", user.ID)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
-		mu.RUnlock()
 
 		var recentReservations []Reservation
 		for rows.Next() {
@@ -764,9 +757,6 @@ func main() {
 			return resError(c, "not_permitted", 403)
 		}
 
-		mu := sync.RWMutex{}
-		mu.Lock()
-		defer mu.Unlock()
 		if _, err := tx.Exec("UPDATE reservations SET canceled_at = ? WHERE id = ?", time.Now().UTC().Format("2006-01-02 15:04:05.000000"), reservation.ID); err != nil {
 			tx.Rollback()
 			return err
@@ -979,14 +969,11 @@ func main() {
 		return renderReportCSV(c, reports)
 	}, adminLoginRequired)
 	e.GET("/admin/api/reports/sales", func(c echo.Context) error {
-		mu := sync.RWMutex{}
-		mu.RLock()
 		rows, err := db.Query("SELECT r.*, s.rank AS sheet_rank, s.num AS sheet_num, s.price AS sheet_price, e.id AS event_id, e.price AS event_price FROM reservations r INNER JOIN sheets s on s.id = r.sheet_id INNER JOIN events e ON e.id = r.event_id")
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
-		mu.RUnlock()
 
 		var reports []Report
 		for rows.Next() {
