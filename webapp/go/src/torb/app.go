@@ -191,14 +191,13 @@ func getEvents(all bool) ([]*Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := db.Query(query)
 	defer tx.Commit()
 
 	query := "SELECT * FROM events WHERE public_fg = true ORDER BY id ASC"
 	if all {
 		query = "SELECT * FROM events ORDER BY id ASC"
 	}
-	rows, err = db.Query(query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -244,9 +243,7 @@ func getEvents(all bool) ([]*Event, error) {
 
 	for reservationRows.Next() {
 		var reservation Reservation
-		if err := reservationRows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt); err != nil {
-			return nil, err
-		}
+		reservationRows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt);
 		r, ok := reservations[reservation.EventID][reservation.SheetID]
 		if ok && r.ReservedAt.Before(*reservation.ReservedAt) {
 			continue
