@@ -294,17 +294,23 @@ func getEvent(eventID, loginUserID int64, hasDetail bool) (*Event, error) {
 		"C": &Sheets{},
 	}
 
-	rows, err := db.Query("SELECT event_id, sheet_id, user_id, reserved_at, canceled_at FROM reservations WHERE event_id = ? AND canceled_at IS NULL GROUP BY event_id, sheet_id HAVING reserved_at = MIN(reserved_at)", event.ID)
+	rows, err := db.Query("SELECT event_id, sheet_id, user_id, reserved_at, canceled_at FROM reservations WHERE event_id = ? AND canceled_at IS NULL", event.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	sheetReservations := map[int64]Reservation{}
+	var reservation Reservation
 	for rows.Next() {
-		var reservation Reservation
 		if err := rows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt); err != nil {
 			return nil, err
+		}
+		r, ok := sheetReservations[reservation.SheetID]
+		if ok && r.ReservedAt.Before(*reservation.ReservedAt) {
+			continue
+		} else {
+			sheetReservations[reservation.SheetID] = reservation
 		}
 		sheetReservations[reservation.SheetID] = reservation
 	}
