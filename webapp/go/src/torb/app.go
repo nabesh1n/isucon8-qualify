@@ -935,19 +935,19 @@ func main() {
 			return resError(c, "not_found", 404)
 		}
 
+		mu := sync.RWMutex{}
+		mu.RLock()
+		mu.RUnlock()
+
 		event, err := getEvent(eventID, -1, true)
 		if err != nil {
 			return err
 		}
-
-		mu := sync.RWMutex{}
-		mu.RLock()
 		rows, err := db.Query("SELECT r.*, s.rank AS sheet_rank, s.num AS sheet_num, s.price AS sheet_price, e.price AS event_price FROM reservations r INNER JOIN sheets s ON s.id = r.sheet_id INNER JOIN events e ON e.id = r.event_id WHERE r.event_id = ?", event.ID)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
-		mu.RUnlock()
 
 		var reports []Report
 		for rows.Next() {
