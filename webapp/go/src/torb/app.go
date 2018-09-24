@@ -303,7 +303,7 @@ func getEvent(eventID, loginUserID int64) (*Event, error) {
 	sheetReservations := make(map[int64]Reservation)
 	var reservation Reservation
 	for rows.Next() {
-		rows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt)
+		rows.Scan(&reservation.ID, &reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt)
 		r, ok := sheetReservations[reservation.SheetID]
 		if ok && r.ReservedAt.Before(*reservation.ReservedAt) {
 			continue
