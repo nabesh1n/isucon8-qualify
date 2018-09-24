@@ -196,7 +196,7 @@ func getEvents(all bool) ([]*Event, error) {
 	if all {
 		query = "SELECT * FROM events ORDER BY id ASC"
 	}
-	rows, err := db.Query(query)
+	rows, err := tx.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -226,12 +226,11 @@ func getEvents(all bool) ([]*Event, error) {
 		sheets = append(sheets, sheet)
 	}
 
-	var eventIDs []string
-	reservations := map[int64]map[int64]Reservation{}
-
+	eventIDs := make([]string, 0, len(events))
+	reservations := make(map[int64]map[int64]Reservation)
 	for _, event := range events {
 		eventIDs = append(eventIDs, strconv.FormatInt(event.ID, 10))
-		reservations[event.ID] = map[int64]Reservation{}
+		reservations[event.ID] = make(map[int64]Reservation)
 	}
 
 	reservationRows, err := db.Query("SELECT * FROM reservations WHERE event_id IN (" + strings.Join(eventIDs, ",") + ") AND canceled_at IS NULL")
