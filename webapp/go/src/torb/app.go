@@ -187,9 +187,13 @@ func getLoginAdministrator(c echo.Context) (*Administrator, error) {
 }
 
 func getEvents(all bool) ([]*Event, error) {
-	query := "SELECT id FROM events WHERE public_fg = true ORDER BY id ASC"
+	mu := sync.RWMutex{}
+	mu.RLock()
+	defer mu.RUnlock()
+
+	query := "SELECT * FROM events WHERE public_fg = true ORDER BY id ASC"
 	if all {
-		query = "SELECT id FROM events ORDER BY id ASC"
+		query = "SELECT * FROM events ORDER BY id ASC"
 	}
 	rows, err := db.Query(query)
 	if err != nil {
@@ -199,17 +203,88 @@ func getEvents(all bool) ([]*Event, error) {
 
 	var events []*Event
 	for rows.Next() {
-		var eventID int64
-		if err := rows.Scan(&eventID); err != nil {
-			return nil, err
-		}
 		var event *Event
-		event, err = getEvent(eventID, -1, false)
-		if err != nil {
+		if err := rows.Scan(&event.ID, &event.Title, &event.PublicFg, &event.ClosedFg, &event.Price); err != nil {
 			return nil, err
 		}
 		events = append(events, event)
 	}
+
+	sheetRows, err := db.Query("SELECT * FROM sheets")
+	if err != nil {
+		return nil, err
+	}
+	defer sheetRows.Close()
+
+	var sheets []Sheet
+	for sheetRows.Next() {
+		var sheet Sheet
+		if err := sheetRows.Scan(&sheet.ID, &sheet.Rank, &sheet.Num, &sheet.Price); err != nil {
+			return nil, err
+		}
+		sheets = append(sheets, sheet)
+	}
+
+	var eventIDs []string
+	reservations := map[int64]map[int64]Reservation{}
+
+	for _, event := range events {
+		eventIDs = append(eventIDs, strconv.FormatInt(event.ID, 10))
+		reservations[event.ID] = map[int64]Reservation{}
+	}
+
+	reservationRows, err := db.Query("SELECT * FROM reservations WHERE event_id IN (" + strings.Join(eventIDs, ",") + ") AND canceled_at IS NULL")
+	if err != nil {
+		return nil, err
+	}
+	defer reservationRows.Close()
+
+	for reservationRows.Next() {
+		var reservation Reservation
+		if err := reservationRows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt); err != nil {
+			return nil, err
+		}
+		r, ok := reservations[reservation.EventID][reservation.SheetID]
+		if ok && r.ReservedAt.Before(*reservation.ReservedAt) {
+			continue
+		} else {
+			reservations[reservation.EventID][reservation.SheetID] = reservation
+		}
+	}
+
+	for i, event := range events {
+		event.Sheets = map[string]*Sheets{
+			"S": &Sheets{},
+			"A": &Sheets{},
+			"B": &Sheets{},
+			"C": &Sheets{},
+		}
+
+		for _, sheet := range sheets {
+			event.Sheets[sheet.Rank].Price = event.Price + sheet.Price
+			event.Total++
+			event.Sheets[sheet.Rank].Total++
+
+			r, ok := reservations[event.ID][sheet.ID]
+			if ok {
+				sheet.Mine = false
+				sheet.Reserved = true
+				sheet.ReservedAtUnix = r.ReservedAt.Unix()
+			} else {
+				event.Remains++
+				event.Sheets[sheet.Rank].Remains++
+			}
+
+			event.Sheets[sheet.Rank].Detail = append(event.Sheets[sheet.Rank].Detail, &sheet)
+
+			for k := range event.Sheets {
+				event.Sheets[k].Detail = nil
+			}
+		}
+
+		events[i] = event
+	}
+
 	return events, nil
 }
 
