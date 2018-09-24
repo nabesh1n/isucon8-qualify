@@ -935,7 +935,7 @@ func main() {
 			return resError(c, "not_found", 404)
 		}
 
-		_, err = db.Exec("LOCK TABLE reservations WRITE")
+		_, err = db.Query("SELECT GET_LOCK('reports', -1)")
 		if err != nil {
 			return err
 		}
@@ -972,7 +972,7 @@ func main() {
 			reports = append(reports, report)
 		}
 
-		_, err = db.Exec("UNLOCK TABLES")
+		_, err = db.Query("SELECT RELEASE_LOCK('reports')")
 		if err != nil {
 			return err
 		}
