@@ -935,9 +935,10 @@ func main() {
 			return resError(c, "not_found", 404)
 		}
 
-		mu := sync.RWMutex{}
-		mu.RLock()
-		defer mu.RUnlock()
+		_, err = db.Exec("LOCK TABLE reservations WRITE")
+		if err != nil {
+			return err
+		}
 
 		event, err := getEvent(eventID, -1, true)
 		if err != nil {
@@ -969,6 +970,11 @@ func main() {
 				report.CanceledAt = reservation.CanceledAt.Format("2006-01-02T15:04:05.000000Z")
 			}
 			reports = append(reports, report)
+		}
+
+		_, err = db.Exec("UNLOCK TABLES")
+		if err != nil {
+			return err
 		}
 		return renderReportCSV(c, reports)
 	}, adminLoginRequired)
