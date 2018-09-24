@@ -937,7 +937,7 @@ func main() {
 
 		mu := sync.RWMutex{}
 		mu.RLock()
-		mu.RUnlock()
+		defer mu.RUnlock()
 
 		event, err := getEvent(eventID, -1, true)
 		if err != nil {
