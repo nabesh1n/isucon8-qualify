@@ -192,11 +192,7 @@ func getEvents(all bool) ([]*Event, error) {
 	}
 	defer tx.Commit()
 
-	query := "SELECT * FROM events WHERE public_fg = true ORDER BY id ASC"
-	if all {
-		query = "SELECT * FROM events ORDER BY id ASC"
-	}
-	rows, err := tx.Query(query)
+	rows, err := tx.Query("SELECT * FROM events ORDER BY id ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -208,6 +204,9 @@ func getEvents(all bool) ([]*Event, error) {
 		if err := rows.Scan(&event.ID, &event.Title, &event.PublicFg, &event.ClosedFg, &event.Price); err != nil {
 			return nil, err
 		}
+		if !all && !event.PublicFg {
+			continue
+		}
 		events = append(events, &event)
 	}
 
@@ -216,7 +215,6 @@ func getEvents(all bool) ([]*Event, error) {
 		return nil, err
 	}
 	defer sheetRows.Close()
-
 	var sheets []Sheet
 	for sheetRows.Next() {
 		var sheet Sheet
@@ -226,8 +224,8 @@ func getEvents(all bool) ([]*Event, error) {
 		sheets = append(sheets, sheet)
 	}
 
-	eventIDs := make([]string, 0, len(events))
 	reservations := make(map[int64]map[int64]Reservation)
+	eventIDs := make([]string, 0, len(events))
 	for _, event := range events {
 		eventIDs = append(eventIDs, strconv.FormatInt(event.ID, 10))
 		reservations[event.ID] = make(map[int64]Reservation)
@@ -239,9 +237,9 @@ func getEvents(all bool) ([]*Event, error) {
 	}
 	defer reservationRows.Close()
 
+	var reservation Reservation
 	for reservationRows.Next() {
-		var reservation Reservation
-		reservationRows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt)
+		reservationRows.Scan(&reservation.ID, &reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt)
 		r, ok := reservations[reservation.EventID][reservation.SheetID]
 		if ok && r.ReservedAt.Before(*reservation.ReservedAt) {
 			continue
@@ -279,7 +277,6 @@ func getEvents(all bool) ([]*Event, error) {
 				event.Sheets[j].Detail = nil
 			}
 		}
-
 		events[i] = event
 	}
 
