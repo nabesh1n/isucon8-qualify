@@ -187,15 +187,18 @@ func getLoginAdministrator(c echo.Context) (*Administrator, error) {
 }
 
 func getEvents(all bool) ([]*Event, error) {
-	mu := sync.RWMutex{}
-	mu.RLock()
-	defer mu.RUnlock()
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.Query(query)
+	defer tx.Commit()
 
 	query := "SELECT * FROM events WHERE public_fg = true ORDER BY id ASC"
 	if all {
 		query = "SELECT * FROM events ORDER BY id ASC"
 	}
-	rows, err := db.Query(query)
+	rows, err = db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -203,11 +206,11 @@ func getEvents(all bool) ([]*Event, error) {
 
 	var events []*Event
 	for rows.Next() {
-		var event *Event
+		var event Event
 		if err := rows.Scan(&event.ID, &event.Title, &event.PublicFg, &event.ClosedFg, &event.Price); err != nil {
 			return nil, err
 		}
-		events = append(events, event)
+		events = append(events, &event)
 	}
 
 	sheetRows, err := db.Query("SELECT * FROM sheets")
