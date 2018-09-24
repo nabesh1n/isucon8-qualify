@@ -925,11 +925,6 @@ func main() {
 			return resError(c, "not_found", 404)
 		}
 
-		_, err = db.Query("SELECT GET_LOCK('reports', -1)")
-		if err != nil {
-			return err
-		}
-
 		event, err := getEvent(eventID, -1, true)
 		if err != nil {
 			return err
@@ -962,10 +957,6 @@ func main() {
 			reports = append(reports, report)
 		}
 
-		_, err = db.Query("SELECT RELEASE_LOCK('reports')")
-		if err != nil {
-			return err
-		}
 		return renderReportCSV(c, reports)
 	}, adminLoginRequired)
 	e.GET("/admin/api/reports/sales", func(c echo.Context) error {
