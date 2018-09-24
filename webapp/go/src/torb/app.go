@@ -876,7 +876,6 @@ func main() {
 			return resError(c, "not_found", 404)
 		}
 
-		time.Sleep(time.Second * 10)
 		var params struct {
 			Public bool `json:"public"`
 			Closed bool `json:"closed"`
@@ -925,6 +924,7 @@ func main() {
 			return resError(c, "not_found", 404)
 		}
 
+		time.Sleep(time.Second * 10)
 		event, err := getEvent(eventID, -1)
 		if err != nil {
 			return err
