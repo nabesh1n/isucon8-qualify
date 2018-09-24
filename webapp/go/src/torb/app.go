@@ -877,6 +877,7 @@ func main() {
 			return resError(c, "not_found", 404)
 		}
 
+		time.Sleep(time.Second * 10)
 		var params struct {
 			Public bool `json:"public"`
 			Closed bool `json:"closed"`
