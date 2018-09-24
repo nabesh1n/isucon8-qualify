@@ -303,16 +303,13 @@ func getEvent(eventID, loginUserID int64, hasDetail bool) (*Event, error) {
 	sheetReservations := map[int64]Reservation{}
 	var reservation Reservation
 	for rows.Next() {
-		if err := rows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt); err != nil {
-			return nil, err
-		}
+		rows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt)
 		r, ok := sheetReservations[reservation.SheetID]
 		if ok && r.ReservedAt.Before(*reservation.ReservedAt) {
 			continue
 		} else {
 			sheetReservations[reservation.SheetID] = reservation
 		}
-		sheetReservations[reservation.SheetID] = reservation
 	}
 
 	sheetRows, err := db.Query("SELECT * FROM sheets")
