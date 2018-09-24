@@ -282,7 +282,7 @@ func getEvents(all bool) ([]*Event, error) {
 	return events, nil
 }
 
-func getEvent(eventID, loginUserID int64, hasDetail bool) (*Event, error) {
+func getEvent(eventID, loginUserID int64) (*Event, error) {
 	var event Event
 	if err := db.QueryRow("SELECT * FROM events WHERE id = ?", eventID).Scan(&event.ID, &event.Title, &event.PublicFg, &event.ClosedFg, &event.Price); err != nil {
 		return nil, err
@@ -294,13 +294,13 @@ func getEvent(eventID, loginUserID int64, hasDetail bool) (*Event, error) {
 		"C": &Sheets{},
 	}
 
-	rows, err := db.Query("SELECT event_id, sheet_id, user_id, reserved_at, canceled_at FROM reservations WHERE event_id = ? AND canceled_at IS NULL", event.ID)
+	rows, err := db.Query("SELECT * FROM reservations WHERE event_id = ? AND canceled_at IS NULL", event.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	sheetReservations := map[int64]Reservation{}
+	sheetReservations := make(map[int64]Reservation)
 	var reservation Reservation
 	for rows.Next() {
 		rows.Scan(&reservation.EventID, &reservation.SheetID, &reservation.UserID, &reservation.ReservedAt, &reservation.CanceledAt)
@@ -337,11 +337,7 @@ func getEvent(eventID, loginUserID int64, hasDetail bool) (*Event, error) {
 			event.Sheets[sheet.Rank].Remains++
 		}
 
-		if hasDetail {
-			event.Sheets[sheet.Rank].Detail = append(event.Sheets[sheet.Rank].Detail, &sheet)
-		} else {
-			event.Sheets[sheet.Rank].Detail = nil
-		}
+		event.Sheets[sheet.Rank].Detail = append(event.Sheets[sheet.Rank].Detail, &sheet)
 	}
 
 	return &event, nil
@@ -513,7 +509,7 @@ func main() {
 				return err
 			}
 
-			event, err := getEvent(reservation.EventID, -1, true)
+			event, err := getEvent(reservation.EventID, -1)
 			if err != nil {
 				return err
 			}
@@ -553,7 +549,7 @@ func main() {
 			if err := rows.Scan(&eventID); err != nil {
 				return err
 			}
-			event, err := getEvent(eventID, -1, false)
+			event, err := getEvent(eventID, -1)
 			if err != nil {
 				return err
 			}
@@ -626,7 +622,7 @@ func main() {
 			loginUserID = user.ID
 		}
 
-		event, err := getEvent(eventID, loginUserID, true)
+		event, err := getEvent(eventID, loginUserID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return resError(c, "not_found", 404)
@@ -652,7 +648,7 @@ func main() {
 			return err
 		}
 
-		event, err := getEvent(eventID, user.ID, true)
+		event, err := getEvent(eventID, user.ID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return resError(c, "invalid_event", 404)
@@ -720,7 +716,7 @@ func main() {
 			return err
 		}
 
-		event, err := getEvent(eventID, user.ID, true)
+		event, err := getEvent(eventID, user.ID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return resError(c, "invalid_event", 404)
@@ -854,7 +850,7 @@ func main() {
 			return err
 		}
 
-		event, err := getEvent(eventID, -1, true)
+		event, err := getEvent(eventID, -1)
 		if err != nil {
 			return err
 		}
@@ -865,7 +861,7 @@ func main() {
 		if err != nil {
 			return resError(c, "not_found", 404)
 		}
-		event, err := getEvent(eventID, -1, true)
+		event, err := getEvent(eventID, -1)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return resError(c, "not_found", 404)
@@ -890,7 +886,7 @@ func main() {
 			params.Public = false
 		}
 
-		event, err := getEvent(eventID, -1, true)
+		event, err := getEvent(eventID, -1)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return resError(c, "not_found", 404)
@@ -916,7 +912,7 @@ func main() {
 			return err
 		}
 
-		e, err := getEvent(eventID, -1, true)
+		e, err := getEvent(eventID, -1)
 		if err != nil {
 			return err
 		}
@@ -929,7 +925,7 @@ func main() {
 			return resError(c, "not_found", 404)
 		}
 
-		event, err := getEvent(eventID, -1, true)
+		event, err := getEvent(eventID, -1)
 		if err != nil {
 			return err
 		}
